@@ -1,0 +1,351 @@
+---
+- name: Debug
+  hosts: all
+  vars_files:
+    - 'mastodon-vars.yml'
+  tasks:
+    - name: Upgrade apt packages
+      become: true
+      ansible.builtin.apt:
+        state: present
+        update_cache: true
+        upgrade: "yes"
+
+    - name: Install apt packages (core)
+      become: true
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - gnupg
+          - apt-transport-https
+          - lsb-release
+          - ca-certificates
+        state: present
+    - name: Add the user 'mastodon' with a specific uid and a primary group of 'admin'
+      become: true
+      ansible.builtin.user:
+        name: mastodon
+        shell: /bin/bash
+        state: present
+        create_home: true
+
+    - name: Add an Apt signing key, uses whichever key is at the URL
+      become: true
+      apt_key:
+        url: "{{ postgresql.apt_key.url }}"
+        state: present
+
+    - name: Add postgresql repository
+      become: true
+      apt_repository:
+        #repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_facts.ansible_lsb }}-pgdg main"
+        repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main"
+        state: present
+        filename: postgresql
+
+    - name: Install apt packages (system)
+      become: true
+      ansible.builtin.apt:
+        name:
+          - imagemagick
+          - ffmpeg
+          - libpq-dev
+          - libxml2-dev
+          - libxslt1-dev
+          - file
+          - git-core
+          - g++
+          - libprotobuf-dev
+          - protobuf-compiler
+          - pkg-config
+          - gcc
+          - autoconf
+          - bison
+          - build-essential
+          - libssl-dev
+          - libyaml-dev
+          - libreadline6-dev
+          - zlib1g-dev
+          - libncurses5-dev
+          - libffi-dev
+          - libgdbm-dev
+          - nginx
+          - redis-server
+          - redis-tools
+          - postgresql-15
+          - postgresql-contrib
+          - python3-psycopg2
+          - certbot
+          - python3-certbot-nginx
+          - libidn11-dev
+          - libicu-dev
+          - libjemalloc-dev
+        state: present
+
+    - name: '[PostgreSQL] Create user "mastodon"'
+      become: true
+      become_user: postgres
+      postgresql_user:
+        name: "{{ postgresql.username }}"
+        password: "{{ postgresql.password }}"
+        role_attr_flags: CREATEDB
+
+    - name: Git clone mastodon
+      become: true
+      become_user: mastodon
+      git:
+        repo: 'https://github.com/mastodon/mastodon.git'
+        dest: /home/mastodon/live
+      register: res_git_mastodon
+
+    - name: "get mastodon latest version"
+      become: true
+      become_user: mastodon
+      shell:
+        cmd: "cd ~/live && git tag -l | grep -v 'rc[0-9]*$' | sort -V | tail -n 1"
+      register: res_mastodon_latest
+
+    - name: Git clone mastodon
+      become: true
+      become_user: mastodon
+      git:
+        repo: 'https://github.com/mastodon/mastodon.git'
+        dest: /home/mastodon/live
+        version: "{{ res_mastodon_latest.stdout }}"
+      register: res_git_mastodon
+
+    - name: Git clone anyenv
+      become: true
+      become_user: mastodon
+      git:
+        repo: 'https://github.com/anyenv/anyenv.git'
+        dest: /home/mastodon/.anyenv
+
+    - name: anyenv initialization (add configuration to .bashrc)
+      become: true
+      become_user: mastodon
+      lineinfile:
+        path: /home/mastodon/.bash_profile
+        line: "{{ item }}"
+        create: true
+      loop:
+        - 'export PATH="$HOME/.anyenv/bin:$PATH"'
+        - 'eval "$(anyenv init -)"'
+
+    - name: Check anyenv dir
+      become: true
+      become_user: mastodon
+      ansible.builtin.stat:
+        path: '~/.config/anyenv/anyenv-install'
+      register: res_anyenv_installer_dir
+
+    - name: anyenv initialization (checkout)
+      become: true
+      become_user: mastodon
+      expect:
+        command: 'anyenv install --init'
+        responses:
+          checkout: 'Y'
+      when: 'res_anyenv_installer_dir.stat.exists == false'
+
+    - name: "Install **env"
+      become: true
+      become_user: mastodon
+      shell:
+        cmd: "anyenv install {{ item }} -s"
+      loop:
+        - nodenv
+        - rbenv
+      changed_when: false
+
+    - name: '[Node.js] get latest nodejs'
+      become: true
+      become_user: mastodon
+      shell:
+        cmd: "nodenv install -l | grep -E '^16' | tail -n 1"
+      register: res_node_latest
+
+    - name: '[Node.js] setup latest nodejs'
+      become: true
+      become_user: mastodon
+      shell:
+        cmd: "{{ item }}"
+      register: res_node_latest
+      loop:
+        - "nodenv install -s {{ res_node_latest.stdout }}"
+        - "nodenv global {{ res_node_latest.stdout }}"
+        - "npm install -U npm"
+        - "npm install -g yarn"
+        - "corepack enable"
+        - "yarn set version classic"
+
+    - name: setup ruby
+      become: true
+      become_user: mastodon
+      shell:
+        cmd: "{{ item }}"
+        chdir: "/home/mastodon/live"
+      loop:
+        - "RUBY_CONFIGURE_OPTS=--with-jemalloc rbenv install -s"
+        - "rbenv global $(cat .ruby-version)"
+        - "gem install bundler --no-document"
+
+    - name: install ruby/node packages
+      become: true
+      become_user: mastodon
+      shell:
+        cmd: "{{ item }}"
+        chdir: "/home/mastodon/live"
+      loop:
+        - "bundle config deployment 'true'"
+        - "bundle config without 'development test'"
+        - "bundle install -j$(getconf _NPROCESSORS_ONLN)"
+        - "yarn install --pure-lockfile"
+
+    - name: Copy file with owner and permissions
+      become: true
+      become_user: root
+      shell:
+        cmd: "cp -u {{ item.src }} {{ item.dest }}"
+      loop:
+        - src: /home/mastodon/live/dist/nginx.conf
+          dest: /etc/nginx/sites-available/mastodon.conf
+        - src: /home/mastodon/live/dist/mastodon-streaming.service
+          dest: /etc/systemd/system/
+        - src: /home/mastodon/live/dist/mastodon-web.service
+          dest: /etc/systemd/system/
+        - src: /home/mastodon/live/dist/mastodon-sidekiq.service
+          dest: /etc/systemd/system/
+
+    - name: get secrets
+      become: true
+      become_user: mastodon
+      shell:
+        cmd: "{{ item }}"
+        chdir: "/home/mastodon/live"
+      loop:
+        - "cp -u /home/mastodon/live/.env.production.sample /home/mastodon/live/.env.production"
+        - "RAILS_ENV=production bundle exec rake secret"
+        - "RAILS_ENV=production bundle exec rake secret"
+        - "RAILS_ENV=production bundle exec rake mastodon:webpush:generate_vapid_key"
+      changed_when: false
+      register: res_secrets
+
+    - name: Before Ansible 2.3, option 'dest', 'destfile' or 'name' was used instead of 'path'
+      become: true
+      become_user: mastodon
+      replace:
+        path: /home/mastodon/live/.env.production
+        regexp: '^({{ item.key }})=.*'
+        replace: "\\1={{ item.replace }}"
+      loop:
+        - { key: 'LOCAL_DOMAIN', replace: "{{ federation.local_domain }}" }
+        - { key: 'REDIS_HOST', replace: "{{ redis.hostname }}" }
+        - { key: 'REDIS_PORT', replace: "{{ redis.port }}" }
+        - { key: 'DB_HOST', replace: "{{ postgresql.hostname }}" }
+        - { key: 'DB_USER', replace: "{{ postgresql.username }}" }
+        - { key: 'DB_NAME', replace: "{{ postgresql.db_name }}" }
+        - { key: 'DB_PASS', replace: "{{ postgresql.password }}" }
+        - { key: 'DB_PORT', replace: "{{ postgresql.port }}" }
+        - { key: 'ES_ENABLED', replace: "{{ elasticsearch.enabled }}" }
+        - { key: 'ES_HOST', replace: "{{ elasticsearch.hostname }}" }
+        - { key: 'ES_PORT', replace: "{{ elasticsearch.port }}" }
+        - { key: 'ES_USER', replace: "{{ elasticsearch.username }}" }
+        - { key: 'ES_PASS', replace: "{{ elasticsearch.password }}" }
+        - { key: 'SECRET_KEY_BASE', replace: "{{ res_secrets.results[1].stdout }}" }
+        - { key: 'OTP_SECRET', replace: "{{ res_secrets.results[2].stdout }}" }
+        - { key: 'SMTP_SERVER', replace: "{{ smtp.server }}" }
+        - { key: 'SMTP_PORT', replace: "{{ smtp.port }}" }
+        - { key: 'SMTP_LOGIN', replace: "{{ smtp.login }}" }
+        - { key: 'SMTP_PASSWORD', replace: "{{ smtp.password }}" }
+        - { key: 'SMTP_FROM_ADDRESS', replace: "{{ smtp.from_address }}" }
+        - { key: 'S3_ENABLED', replace: "{{ s3.enabled }}" }
+        - { key: 'S3_BUCKET', replace: "{{ s3.bucket }}" }
+        - { key: 'AWS_ACCESS_KEY_ID', replace: "{{ s3.aws_access_key_id }}" }
+        - { key: 'AWS_SECRET_ACCESS_KEY', replace: "{{ s3.aws_secret_access_key }}" }
+        - { key: 'S3_ALIAS_HOST', replace: "{{ s3.alias_host }}" }
+        #- { key: 'IP_RETENTION_PERIOD', replace: "{{ retention_period.ip }}" }
+        #- { key: 'SESSION_RETENTION_PERIOD', replace: "{{ retention_period.session }}" }
+
+    - name: Before Ansible 2.3, option 'dest', 'destfile' or 'name' was used instead of 'path'
+      become: true
+      become_user: mastodon
+      replace:
+        path: /home/mastodon/live/.env.production
+        regexp: '^{{ item.key }}=.*'
+        replace: "{{ item.replace }}"
+      loop:
+        - { key: 'VAPID_PRIVATE_KEY', replace: "{{ res_secrets.results[3].stdout_lines[0] }}" }
+        - { key: 'VAPID_PUBLIC_KEY', replace: "{{ res_secrets.results[3].stdout_lines[1] }}" }
+
+    - name: Collect all info except databases
+      become: yes
+      become_user: postgres
+      postgresql_info:
+        filter:
+          - "databases"
+      register: res_databases
+
+    - name: get secrets
+      become: true
+      become_user: mastodon
+      shell:
+        chdir: "/home/mastodon/live"
+        cmd: "{{ item }}"
+      loop:
+        - "RAILS_ENV=production bundle exec rake db:setup"
+        - "RAILS_ENV=production bundle exec rake assets:precompile"
+      when: "postgresql.db_name not in {{ res_databases.databases.keys() }}"
+
+    - name: Create a symbolic link
+      become: true
+      become_user: root
+      file:
+        src: ../sites-available/mastodon.conf
+        dest: /etc/nginx/sites-enabled/mastodon.conf
+        state: link
+
+    # listenの中のsslを消してるけど
+    # 本当は消さない(あとでなおす)
+    - name: Before Ansible 2.3, option 'dest', 'destfile' or 'name' was used instead of 'path'
+      become: true
+      become_user: root
+      replace:
+        path: /etc/nginx/sites-enabled/mastodon.conf
+        regexp: 'ssl http2'
+        replace: "http2"
+
+    - name: Before Ansible 2.3, option 'dest', 'destfile' or 'name' was used instead of 'path'
+      become: true
+      become_user: root
+      replace:
+        path: "/etc/systemd/system/{{ item.file }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      loop:
+        - file: mastodon-web.service
+          regexp: '\.rbenv/shims'
+          replace: '.anyenv/envs/rbenv/shims'
+        - file: mastodon-streaming.service
+          regexp: '/usr/bin/node'
+          replace: '/home/mastodon/.anyenv/envs/nodenv/shims/node'
+        - file: mastodon-sidekiq.service
+          regexp: '\.rbenv/shims'
+          replace: '.anyenv/envs/rbenv/shims'
+
+# サービスの再起動
+    - name: Make sure a service is running
+      become: true
+      become_user: root
+      systemd:
+        state: restarted
+        enabled: true
+        daemon_reload: true
+        name: "{{ item }}"
+
+      loop:
+        - mastodon-web.service
+        - mastodon-streaming.service
+        - mastodon-sidekiq.service
+        - nginx.service

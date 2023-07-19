@@ -1,0 +1,4 @@
+---
+ansible_host: dev-server02
+ansible_connection: ssh
+ansible_port: 22
