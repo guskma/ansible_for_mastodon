@@ -1,0 +1,5 @@
+---
+- name: Role test playbook
+  hosts: all
+  roles:
+    - ../mastodon-app-config # noqa:syntax-check[specific]

@@ -1,3 +1,7 @@
 .vscode/
 vars/*.yml
 venv
+roles/**/inventory*
+roles/**/group_vars
+roles/**/host_vars
+__*

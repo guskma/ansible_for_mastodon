@@ -1,0 +1,9 @@
+---
+- name: Include tasks
+  ansible.builtin.include_tasks: anyenv.yml
+
+- name: Include tasks
+  ansible.builtin.include_tasks: nodenv.yml
+
+- name: Include tasks
+  ansible.builtin.include_tasks: rbenv.yml

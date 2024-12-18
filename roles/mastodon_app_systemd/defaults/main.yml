@@ -1,0 +1,7 @@
+---
+mastodon_app_path: /home/mastodon/live
+mastodon_sys_copyfiles:
+  - src: "{{ mastodon_app_path }}/dist/mastodon-web.service"
+    dest: /etc/systemd/system/
+  - src: "{{ mastodon_app_path }}/dist/mastodon-sidekiq.service"
+    dest: /etc/systemd/system/

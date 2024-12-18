@@ -1,0 +1,2 @@
+---
+var_naming_pattern: "^(mastodon|ansible)_[a-z0-9_]+$"

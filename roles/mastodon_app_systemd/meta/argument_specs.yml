@@ -1,0 +1,29 @@
+---
+argument_specs:
+  main:
+    short_description: Copy system config file from app repository.
+    description:
+      - Copy system config file from app repository.
+    author:
+      - guskma
+    options:
+      mastodon_app_path:
+        type: str
+        required: false
+        default: /home/mastodon/live
+        description:
+          - Mastodon app root directory (absolute path).
+      mastodon_sys_copyfiles:
+        type: list
+        required: true
+        description:
+          - System file copying list.
+        options:
+          src:
+            type: str
+            required: true
+            description: Source file
+          dest:
+            type: str
+            required: true
+            description: Destination file

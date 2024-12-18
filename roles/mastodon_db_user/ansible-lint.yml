@@ -1,0 +1,2 @@
+---
+var_naming_pattern: "^(args|_)_mastodon_[a-z0-9_]+$"

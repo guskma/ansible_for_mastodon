@@ -1,0 +1,6 @@
+---
+- name: Include tasks
+  ansible.builtin.include_tasks: check-pre.yml
+
+- name: Include tasks
+  ansible.builtin.include_tasks: add-pg-user.yml

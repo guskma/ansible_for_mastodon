@@ -1,0 +1,70 @@
+---
+- name: Install nodenv
+  ansible.builtin.command:
+    cmd: "{{ mastodon_app_anyenv_path }}/bin/anyenv install -s nodenv"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  changed_when: "'Install nodenv succeeded!' in __result.stdout"
+  register: __result
+
+- name: Update nodenv
+  ansible.builtin.command:
+    cmd: "{{ mastodon_app_anyenv_path }}/bin/anyenv install --update nodenv"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  changed_when: "'Install nodenv succeeded!' in __result.stdout"
+  register: __result
+
+- name: Get Node.js versions
+  ansible.builtin.command:
+    cmd: "{{ item.cmd }}"
+  loop:
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/nodenv/bin/nodenv install -l"
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/nodenv/bin/nodenv global"
+  environment:
+    NODENV_ROOT: "{{ mastodon_app_anyenv_path }}/envs/nodenv"
+    NODENV_SHELL: "bash"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  changed_when: false
+  register: __result_node_versions
+
+- name: Install Node.js
+  ansible.builtin.command:
+    cmd: "{{ item.cmd }}"
+  environment:
+    NODENV_ROOT: "{{ mastodon_app_anyenv_path }}/envs/nodenv"
+    NODENV_SHELL: "bash"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+    __nodejs_version_re: "{{ arg_nodejs_version_re | default('^\\d+') }}"
+    __version_nodejs: "{{ __result_node_versions.results[0].stdout_lines | \
+      select('ansible.builtin.regex', __nodejs_version_re) | \
+      sort(reverse=true) | first }}"
+    # __version_nodejs_global: "{{ __result_node_versions.results[1].stdout }}"
+  loop:
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/nodenv/bin/nodenv install -s {{ __version_nodejs }}"
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/nodenv/bin/nodenv global {{ __version_nodejs }}"
+  changed_when: "'Installed node' in __result.stderr"
+  register: __result
+
+- name: Install yarn
+  ansible.builtin.command:
+    cmd: "{{ item.cmd }}"
+  environment:
+    NODENV_ROOT: "{{ mastodon_app_anyenv_path }}/envs/nodenv"
+    NODENV_SHELL: "bash"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  loop:
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/nodenv/shims/npm install -U npm"
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/nodenv/shims/npm install -g yarn"
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/nodenv/shims/corepack enable"
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/nodenv/shims/yarn set version classic"
+  changed_when: "'Installed node' in __result.stderr"
+  register: __result

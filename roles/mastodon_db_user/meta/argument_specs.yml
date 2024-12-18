@@ -1,0 +1,24 @@
+---
+argument_specs:
+  main:
+    short_description: Setup users for Mastodon app server
+    description:
+      - Setup users for Mastodon app server
+    author:
+      - guskma
+    options:
+      mastodon_db_user_name:
+        type: str
+        required: false
+        default: mastodon
+        description:
+          - Username to manage PostgreSQL.
+          - Defaults `mastodon`
+      mastodon_db_user_password:
+        type: str
+        required: false
+        default:
+        description:
+          - Password to manage PostgreSQL.
+          - This parameter does not need to be set by default.
+          - Used to login to administer the server.

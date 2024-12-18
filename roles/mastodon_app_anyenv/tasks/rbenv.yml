@@ -1,0 +1,90 @@
+---
+- name: Install Ruby packages
+  ansible.builtin.apt:
+    name:
+      - g++
+      - gcc
+      - build-essential
+      - zlib1g-dev
+      - libssl-dev
+      - libffi-dev
+      - libyaml-dev
+      - libjemalloc-dev
+    update_cache: true
+    state: present
+
+- name: Install rbenv
+  ansible.builtin.command:
+    cmd: "{{ mastodon_app_anyenv_path }}/bin/anyenv install -s rbenv"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  changed_when: "'Install rbenv succeeded!' in __result.stdout"
+  register: __result
+
+- name: Update rbenv
+  ansible.builtin.command:
+    cmd: "{{ mastodon_app_anyenv_path }}/bin/anyenv install --update rbenv"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  changed_when: "'Install rbenv succeeded!' in __result.stdout"
+  register: __result
+
+- name: Get Ruby versions
+  ansible.builtin.command:
+    cmd: "{{ item.cmd }}"
+  loop:
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/rbenv/bin/rbenv install -l"
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/rbenv/bin/rbenv global"
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/rbenv/bin/rbenv local"
+  environment:
+    RBENV_ROOT: "{{ mastodon_app_anyenv_path }}/envs/rbenv"
+    RBENV_SHELL: "bash"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  args:
+    chdir: "{{ mastodon_app_path }}"
+  changed_when: false
+  register: __result_node_versions
+
+- name: Install Ruby
+  ansible.builtin.command:
+    cmd: "{{ item.cmd }}"
+  environment:
+    RBENV_ROOT: "{{ mastodon_app_anyenv_path }}/envs/rbenv"
+    RBENV_SHELL: "bash"
+    RUBY_CONFIGURE_OPTS: "--with-jemalloc"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  args:
+    chdir: "{{ mastodon_app_path }}"
+  loop:
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/rbenv/bin/rbenv install -s"
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/rbenv/bin/rbenv global {{ __result_node_versions.results[2].stdout }}"
+  changed_when:
+    - "'Installed ruby' in __result.stdout"
+  register: __result
+
+- name: Install bundler
+  ansible.builtin.command:
+    cmd: "{{ item.cmd }}"
+  environment:
+    RBENV_ROOT: "{{ mastodon_app_anyenv_path }}/envs/rbenv"
+    RBENV_SHELL: "bash"
+    RUBY_CONFIGURE_OPTS: "--with-jemalloc"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  args:
+    chdir: "{{ mastodon_app_path }}"
+  loop:
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/rbenv/shims/gem install bundler --no-document"
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/rbenv/shims/bundle config deployment 'true'"
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/rbenv/shims/bundle config without 'development test'"
+  changed_when:
+    - "'Fetching bundler' in __result.stdout"
+    - "'Successfully installed bundler' in __result.stdout"
+  register: __result

@@ -1,0 +1,7 @@
+---
+- name: Role test playbook # noqa: role-name[path]
+  hosts: all
+  vars:
+    ansible_become: false
+  roles:
+    - ../mastodon_sys_packages

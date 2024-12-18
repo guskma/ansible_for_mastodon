@@ -1,0 +1,35 @@
+---
+argument_specs:
+  main:
+    short_description: Setup Mastodon app repository.
+    description:
+      - Setup Mastodon app repository.
+    author:
+      - guskma
+    options:
+      mastodon_app_path:
+        type: str
+        required: false
+        default: /home/mastodon/live
+        description:
+          - Mastodon app root directory (absolute path).
+      mastodon_app_anyenv_path:
+        type: str
+        required: false
+        default: /home/mastodon/.anyenv
+        description:
+          - Anyenv root directory (absolute path).
+      mastodon_app_user_name:
+        type: str
+        required: false
+        default: mastodon
+        description:
+          - Username to execute Mastodon application.
+          - Execute application processes (web, sidekiq, streaming, and other...)
+          - Defaults `mastodon`
+      mastodon_app_shell_profile:
+        type: str
+        required: false
+        default: /home/mastodon/.bash_profile
+        description:
+          - Mastodon app user\'s shell profile file.

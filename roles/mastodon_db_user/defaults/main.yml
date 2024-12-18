@@ -1,0 +1,3 @@
+---
+mastodon_db_user_name: mastodon
+mastodon_db_user_password: "{{ lookup('ansible.builtin.pipe', '/usr/bin/uuidgen') }}"

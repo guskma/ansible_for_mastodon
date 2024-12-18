@@ -1,0 +1,8 @@
+---
+__mastodon_apt_packages:
+  - curl
+  - wget
+  - gnupg
+  - apt-transport-https
+  - lsb-release
+  - ca-certificates

@@ -1,0 +1,29 @@
+---
+__mastodon_db_aptkey_url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+
+__mastodon_apt_db_packages:
+#  - imagemagick
+#  - ffmpeg
+#  - libpq-dev
+#  - libxml2-dev
+#  - libxslt1-dev
+#  - file
+  - git-core
+#  - libprotobuf-dev
+#  - protobuf-compiler
+#  - pkg-config
+#  - autoconf
+#  - bison
+#  - libreadline6-dev
+#  - libncurses5-dev
+#  - libgdbm-dev
+#  - nginx
+#  - redis-server
+#  - redis-tools
+  - postgresql-15
+#  - postgresql-contrib # ポスグレの最新版(開発版)
+  - python3-psycopg2
+#  - certbot
+#  - python3-certbot-nginx
+#  - libidn11-dev
+#  - libicu-dev

@@ -1,0 +1,63 @@
+---
+- name: Install common packages
+  ansible.builtin.apt:
+    name:
+      - python3-pexpect
+    update_cache: true
+    state: present
+
+- name: Git clone anyenv
+  ansible.builtin.git:
+    repo: https://github.com/anyenv/anyenv.git
+    dest: "{{ mastodon_app_anyenv_path }}"
+    version: HEAD # noqa: latest[git]
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+
+- name: Initialize anyenv (add configuration to .bashrc)
+  ansible.builtin.lineinfile:
+    path: "{{ mastodon_app_shell_profile }}"
+    line: "{{ item }}"
+    mode: "0744"
+    create: true
+  loop:
+    - 'export PATH="$HOME/.anyenv/bin:$PATH"'
+    - 'eval "$(anyenv init -)"'
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+
+- name: Check anyenv configuration path
+  ansible.builtin.file:
+    path: "~/.config/anyenv/anyenv-install"
+  check_mode: true
+  ignore_errors: true
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  register: __result_check_anyenv
+
+- name: Initialize anyenv (checkout)
+  ansible.builtin.expect:
+    command: "{{ mastodon_app_anyenv_path }}/bin/anyenv install --init"
+    responses:
+      checkout: 'Y'
+  when:
+    - __result_check_anyenv.state == 'absent'
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  register: __result_init_anyenv
+
+- name: Update anyenv
+  ansible.builtin.command:
+    cmd: "{{ mastodon_app_anyenv_path }}/bin/anyenv install --update"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  changed_when: "'Fast-forward' in __result.stdout"
+  register: __result
+  when:
+    - __result_init_anyenv is not ansible.builtin.changed
+    - __result_init_anyenv is ansible.builtin.skipped

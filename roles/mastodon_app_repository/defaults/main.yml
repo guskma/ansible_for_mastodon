@@ -1,0 +1,4 @@
+---
+mastodon_app_user_name: mastodon
+mastodon_app_path: /home/mastodon/live
+mastodon_app_repository: https://github.com/mastodon/mastodon.git

@@ -1,0 +1,25 @@
+---
+- name: Add the user 'mastodon' with a specific uid and a primary group of 'admin'
+  ansible.builtin.user:
+    name: "{{ mastodon_app_user_name }}"
+    shell: /bin/bash
+    state: present
+    uid: 2000
+    create_home: true
+
+- name: Set user password
+  ansible.builtin.user:
+    name: "{{ mastodon_app_user_name }}"
+    password: "{{ mastodon_app_user_password }}"
+    state: present
+  when:
+    - (mastodon_app_user_password is defined) and (mastodon_app_user_password | length > 0)
+
+- name: Set administrative privileges
+  ansible.builtin.user:
+    name: "{{ mastodon_app_user_name }}"
+    append: true
+    groups: sudo
+    state: present
+  when:
+    - (mastodon_app_user_is_admin is defined) and (mastodon_app_user_password)

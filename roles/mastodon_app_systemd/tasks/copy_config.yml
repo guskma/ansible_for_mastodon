@@ -1,0 +1,13 @@
+---
+- name: Copy configuration file
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0644"
+    owner: root
+    group: root
+    remote_src: true
+  vars:
+    ansible_become: true
+    ansible_become_user: root
+  loop: "{{ mastodon_sys_copyfiles }}"

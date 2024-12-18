@@ -1,0 +1,14 @@
+---
+- name: Check PostgreSQL package installed
+  ansible.builtin.apt:
+    name:
+      - postgresql-15
+  check_mode: true
+  register: __result
+
+- name: Check PostgreSQL user exists
+  ansible.builtin.user:
+    name: postgres
+  check_mode: true
+  failed_when: __result.changed
+  register: __result

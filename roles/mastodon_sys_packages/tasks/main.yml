@@ -1,0 +1,6 @@
+---
+- name: Include tasks
+  ansible.builtin.include_tasks: upgrade_apt_packages.yml
+  vars:
+    ansible_become: true
+    ansible_become_user: root

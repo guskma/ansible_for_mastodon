@@ -1,0 +1,16 @@
+---
+- name: Install node packages
+  ansible.builtin.command:
+    cmd: "{{ item.cmd }}"
+  environment:
+    NODENV_ROOT: "{{ mastodon_app_anyenv_path }}/envs/nodenv"
+    NODENV_SHELL: "bash"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  args:
+    chdir: "{{ mastodon_app_path }}"
+  loop:
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/nodenv/shims/yarn install"
+  changed_when: "'Installed node' in __result.stderr"
+  register: __result

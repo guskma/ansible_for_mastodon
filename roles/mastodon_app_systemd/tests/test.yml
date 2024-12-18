@@ -1,0 +1,5 @@
+---
+- name: Role test playbook # noqa: role-name[path]
+  hosts: all
+  roles:
+    - ../mastodon_sys_copyfile

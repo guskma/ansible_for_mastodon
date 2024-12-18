@@ -1,0 +1,26 @@
+---
+- name: Get configuration
+  ansible.builtin.command:
+    cmd: "{{ item.cmd }}"
+  loop:
+    - cmd: "/usr/bin/getconf _NPROCESSORS_ONLN"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  changed_when: false
+  register: __result_ruby_config
+
+- name: Install bundler
+  ansible.builtin.command:
+    cmd: "{{ item.cmd }}"
+  environment:
+    RBENV_ROOT: "{{ mastodon_app_anyenv_path }}/envs/rbenv"
+    RBENV_SHELL: "bash"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  args:
+    chdir: "{{ mastodon_app_path }}"
+  loop:
+    - cmd: "{{ mastodon_app_anyenv_path }}/envs/rbenv/shims/bundle install -j{{ __result_ruby_config.results[0].stdout }}"
+  changed_when: false

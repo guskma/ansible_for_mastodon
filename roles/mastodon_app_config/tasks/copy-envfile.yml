@@ -1,0 +1,14 @@
+---
+- name: Copy env file
+  ansible.builtin.copy:
+    src: "{{ mastodon_app_path }}/.env.production.sample"
+    dest: "{{ mastodon_app_path }}/.env"
+    mode: "0664"
+    owner: "{{ mastodon_app_user_name }}"
+    group: "{{ mastodon_app_user_name }}"
+    force: false
+    remote_src: true
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  register: __result_copy_envfile

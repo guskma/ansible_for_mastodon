@@ -1,0 +1,14 @@
+---
+- name: Fetch apt repositories and upgrade apt packages
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: full
+    autoremove: true
+    autoclean: true
+    state: present
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name: "{{ __mastodon_apt_packages }}"
+    update_cache: true
+    state: present

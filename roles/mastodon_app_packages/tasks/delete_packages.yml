@@ -1,0 +1,8 @@
+---
+- name: Delete packages
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop:
+    - path: "{{ mastodon_app_path }}/node_modules"
+    - path: "{{ mastodon_app_path }}/vendor/bundle"

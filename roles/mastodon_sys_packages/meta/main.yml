@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  author: guskma
+  description: Fetch apt repositories and upgrade apt packages
+  company: No organization
+
+  license: MIT
+
+  min_ansible_version: 2.15.0
+
+  galaxy_tags: []
+
+dependencies: []

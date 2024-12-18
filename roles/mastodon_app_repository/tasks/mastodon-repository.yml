@@ -1,0 +1,21 @@
+---
+- name: Check app user
+  ansible.builtin.user:
+    name: "{{ mastodon_app_user_name }}"
+    state: present
+  failed_when:
+    - __result.append is exists
+    - __result.append == false
+    - __result.changed == true
+  check_mode: true
+  register: __result
+
+- name: Git clone mastodon
+  ansible.builtin.git:
+    repo: "{{ mastodon_app_repository }}"
+    dest: "{{ mastodon_app_path }}"
+    version: "{{ mastodon_app_version }}"
+  vars:
+    ansible_become: true
+    ansible_become_user: "{{ mastodon_app_user_name }}"
+  register: res_git_mastodon
